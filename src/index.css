@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #000000;
+  --secondary: #A88FAC;
+  --tertiary: #826C7F;
+  --background: #FFFFFF;
+}
+
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background-color: var(--background);
+  color: var(--primary);
+}
+
+.btn {
+  @apply px-6 py-2 rounded-lg font-medium transition-all duration-200;
+}
+
+.btn-primary {
+  @apply bg-[#000000] text-white hover:bg-opacity-90;
+}
+
+.btn-secondary {
+  @apply bg-[#A88FAC] text-white hover:bg-opacity-90;
+}
+
+.input {
+  @apply w-full px-4 py-2 rounded-lg border border-[#826C7F] focus:outline-none focus:ring-2 focus:ring-[#A88FAC];
+}

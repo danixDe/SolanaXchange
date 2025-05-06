@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import Layout from '@/v2/layout/layout';
 import Dashboard from '@/v2/dashboard/dashboard';
 import { Route, Routes } from 'react-router-dom';
-import CreateToken from './pages/CreateToken';
+import {TokenCreationForm} from './v2/token/CreateToken';
 import { TokenMintingForm } from './v2/token/MintToken';
 import { TokenGrid } from './v2/token/TokenGrid';
 
@@ -18,7 +18,7 @@ function App() {
         <Routes>
           <Route path = '/' element = {<Layout />}>
           <Route index element = {<Dashboard />} />
-          <Route path = "create" element = {<CreateToken />}/>
+          <Route path = "create" element = {<TokenCreationForm />}/>
           <Route path = "mint" element = {<TokenMintingForm />} />
           <Route path = "grid" element = {<TokenGrid />} />
           <Route path = "wallet" element = {<WalletInfo />} />

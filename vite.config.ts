@@ -2,12 +2,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import rollupNodePolyFill from 'rollup-plugin-node-polyfills';
+import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tsconfigPaths()],
   resolve: {
     alias: {
-      buffer: 'buffer', // 👈 polyfill 'buffer'
+      buffer: 'buffer', 
       process: 'process/browser',
     },
   },
@@ -19,7 +20,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      plugins: [rollupNodePolyFill()], // 👈 needed for production build
+      plugins: [rollupNodePolyFill()], 
     },
   },
 });

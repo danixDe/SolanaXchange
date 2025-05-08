@@ -3,12 +3,16 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import rollupNodePolyFill from 'rollup-plugin-node-polyfills';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import svgr from 'vite-plugin-svgr';
+
 
 export default defineConfig({
   plugins: [
     react(),
     tsconfigPaths(),
+    svgr()
   ],
+  assetsInclude: ['**/*.svg'], 
   resolve: {
     alias: {
       buffer: 'rollup-plugin-node-polyfills/polyfills/buffer-es6',

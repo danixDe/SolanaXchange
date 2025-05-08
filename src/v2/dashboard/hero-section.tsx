@@ -1,12 +1,13 @@
 import { Button } from '@/components/ui/button';
 import { WalletConnectButton } from '@/v2/wallet/WalletConnect';
 import { CoinsIcon } from 'lucide-react';
+import { TokenETH } from '@web3icons/react';
 
 export function HeroSection() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
       <div className="flex items-center justify-center bg-primary/10 w-20 h-20 rounded-full mb-6 animate-pulse">
-        <CoinsIcon className="h-10 w-10 text-primary" />
+        <TokenETH className="h-16 w-16 text-primary" />
       </div>
       
       <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">

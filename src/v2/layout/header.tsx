@@ -2,6 +2,7 @@ import { useEffect, useState, } from 'react';
 import { useWallet } from '@/v2/providers/WalletProvider';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import {TokenSOL} from '@web3icons/react';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +10,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { WalletConnectButton } from '@/v2/wallet/WalletConnect';
-import { CoinsIcon, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 
 const Header = () => {
   const { connected, address } = useWallet();
@@ -34,8 +35,8 @@ const Header = () => {
     >
       <div className="container mx-auto px-4 flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
-          <CoinsIcon className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold tracking-tight">SolanaLabs</span>
+          <TokenSOL className="h-8 w-8 text-primary" />
+          <span className="text-xl font-bold tracking-tight">SolanaXchange</span>
         </div>
         
         <nav className="hidden md:flex items-center gap-6">
@@ -71,10 +72,16 @@ const Header = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[200px]">
-              <DropdownMenuItem>Dashboard</DropdownMenuItem>
-              <DropdownMenuItem>Create Token</DropdownMenuItem>
-              <DropdownMenuItem>Mint Token</DropdownMenuItem>
-              <DropdownMenuItem>My Wallet</DropdownMenuItem>
+              <DropdownMenuItem><Link to = '/'>Dashboard</Link></DropdownMenuItem>
+              <DropdownMenuItem> 
+                  <Link to = '/create'>Create Token</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+              <Link to = '/mint'>Mint Token</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+              <Link to = '/grid'>My wallet</Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

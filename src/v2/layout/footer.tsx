@@ -1,4 +1,4 @@
-import { CoinsIcon, Github } from 'lucide-react';
+import { CoinsIcon, Github, Globe, Linkedin } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 const Footer = () => {
@@ -9,14 +9,20 @@ const Footer = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <CoinsIcon className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold">SolanaLabs</span>
+              <span className="text-lg font-bold">SolanaXchange</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Build and deploy decentralized applications with ease
+              Create and mint tokens with ease
             </p>
             <div className="flex items-center gap-4">
-              <a href="#" className="text-muted-foreground hover:text-foreground">
+              <a href="https://github.com/danixDe/" className="text-muted-foreground hover:text-foreground">
                 <Github className="h-5 w-5" />
+              </a>
+              <a href = "https://linkedin.com/in/arvix17" className='text-muted-foreground hover:text-foreground'>
+              <Linkedin className='h-5 w-5' />
+              </a>
+              <a href = "https://danixde.vercel.app" className='text-muted-foreground hover:text-foreground'>
+              <Globe className='h-5 w-5' />
               </a>
             </div>
           </div>
@@ -71,8 +77,12 @@ const Footer = () => {
         
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} SolanaLabs. All rights reserved.
+            &copy; {new Date().getFullYear()} SolanaXchange. All rights reserved.
           </p>
+          <p className="text-xs text-muted-foreground">
+            Aravind Bollapragada
+          </p>
+          
           <div className="flex items-center gap-4">
             <a href="#" className="text-xs text-muted-foreground hover:text-foreground">
               Privacy

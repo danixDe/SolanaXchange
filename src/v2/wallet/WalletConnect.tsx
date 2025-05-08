@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useWallet, WalletType } from '@/v2/providers/WalletProvider';
 import { Button } from '@/components/ui/button';
+import  PhantomIcon from '@/assets/icons/phantomIcon';
+import SolflareIcon from '@/assets/icons/SolflareIcon'
 import {
   Dialog,
   DialogContent,
@@ -57,13 +59,13 @@ export function WalletConnectButton() {
           <div className="grid gap-4 py-4">
             <WalletCard
               name="Phantom"
-              icon="👻"
+              Icon={PhantomIcon}
               onClick={() => handleConnect('phantom')}
               description="Connect to your Phantom Wallet"
             />
             <WalletCard
               name="Solflare"
-              icon="🔆"
+              Icon={SolflareIcon}
               onClick={() => handleConnect('solflare')}
               description="Connect to your Solflare Wallet"
             />

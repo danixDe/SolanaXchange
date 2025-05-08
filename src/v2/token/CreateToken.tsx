@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import { useWallet } from '@/v2/providers/WalletProvider';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -36,6 +37,7 @@ const formSchema = z.object({
 export function TokenCreationForm() {
   const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
+  const { createToken, connected } = useWallet();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,20 +51,41 @@ export function TokenCreationForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!connected) {
+      toast({
+        title: 'Wallet Not Connected',
+        description: 'Connect your wallet before creating a token.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsCreating(true);
-    
-    // Simulate token creation delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    console.log(values);
-    
-    toast({
-      title: 'Token Created',
-      description: `Your token ${values.tokenName} (${values.tokenSymbol}) has been created successfully.`,
-    });
-    
-    setIsCreating(false);
-    form.reset();
+
+    try {
+      await createToken(
+        values.tokenName,
+        values.tokenSymbol,
+        values.tokenDecimals,
+        values.initialSupply
+      );
+
+      toast({
+        title: 'Token Created',
+        description: `Your token ${values.tokenName} (${values.tokenSymbol}) has been created successfully.`,
+      });
+
+      form.reset();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Token Creation Failed',
+        description: 'There was a problem creating your token.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   return (
@@ -85,7 +108,7 @@ export function TokenCreationForm() {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="tokenSymbol"
@@ -103,7 +126,7 @@ export function TokenCreationForm() {
             )}
           />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
@@ -121,7 +144,7 @@ export function TokenCreationForm() {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="initialSupply"
@@ -139,7 +162,7 @@ export function TokenCreationForm() {
             )}
           />
         </div>
-        
+
         <FormField
           control={form.control}
           name="tokenDescription"
@@ -147,10 +170,10 @@ export function TokenCreationForm() {
             <FormItem>
               <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
-                <Textarea 
-                  placeholder="Describe your token's purpose..." 
-                  className="resize-none" 
-                  {...field} 
+                <Textarea
+                  placeholder="Describe your token's purpose..."
+                  className="resize-none"
+                  {...field}
                 />
               </FormControl>
               <FormDescription>
@@ -160,9 +183,9 @@ export function TokenCreationForm() {
             </FormItem>
           )}
         />
-        
-        <Button 
-          type="submit" 
+
+        <Button
+          type="submit"
           className="w-full rounded-full"
           disabled={isCreating}
         >

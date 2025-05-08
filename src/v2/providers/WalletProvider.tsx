@@ -1,11 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { Connection, PublicKey, LAMPORTS_PER_SOL, Keypair } from '@solana/web3.js';
 import { useToast } from '@/hooks/use-toast';
-import {
-  createMint,
-  getOrCreateAssociatedTokenAccount,
-  mintTo,
-} from '@solana/spl-token';
 
 export type WalletType = 'phantom' | 'solflare' | null;
 
@@ -131,7 +126,12 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     fetchBalance();
   }, [address]);
 
-  const createToken = async (tokenName: string, tokenSymbol: string, tokenDecimals: number, initialSupply: number) => {
+  const createToken = async (
+    tokenName: string,
+    tokenSymbol: string,
+    tokenDecimals: number,
+    initialSupply: number
+  ) => {
     if (!address) {
       toast({
         title: 'Wallet Not Connected',
@@ -142,13 +142,48 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
+      const {
+        createMint,
+        getOrCreateAssociatedTokenAccount,
+        mintTo,
+      } = await import('@solana/spl-token') as any;
+
       const mintAuthority = new PublicKey(address);
-      const payer = mintAuthority; 
-      const mint = await createMint(connection, payer, mintAuthority, null, tokenDecimals);
+      const payer = mintAuthority;
+      
+      const mint = await createMint(
+        connection,
+        payer,
+        mintAuthority,
+        null,
+        tokenDecimals
+      );
 
-      const tokenAccount = await getOrCreateAssociatedTokenAccount(connection, payer, mint, mintAuthority);
+      const tokenAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        mintAuthority
+      );
 
-      await mintTo(connection, payer, mint, tokenAccount.address, mintAuthority, initialSupply * Math.pow(10, tokenDecimals));
+      await mintTo(
+        connection,
+        payer,
+        mint,
+        tokenAccount.address,
+        mintAuthority,
+        initialSupply * Math.pow(10, tokenDecimals)
+      );
+
+      // Add the created token to the state
+      setCreatedTokens((prevTokens) => [
+        ...prevTokens,
+        {
+          name: tokenName,
+          symbol: tokenSymbol,
+          address: mint.toBase58(),
+        },
+      ]);
 
       toast({
         title: 'Token Created',
@@ -162,6 +197,44 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       toast({
         title: 'Token Creation Failed',
         description: 'There was an error creating your token. See console for details.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const mintToken = async (tokenAddress: string, amount: number) => {
+    if (!address) {
+      toast({
+        title: 'Wallet Not Connected',
+        description: 'You need to connect your wallet first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { mintTo, getAssociatedTokenAddress } = await import('@solana/spl-token') as any;
+
+      const tokenMint = new PublicKey(tokenAddress);
+      const payer = new PublicKey(address);
+
+      const associatedTokenAddress = await getAssociatedTokenAddress(
+        tokenMint,
+        payer
+      );
+
+      await mintTo(connection, payer, tokenMint, associatedTokenAddress, payer, amount);
+
+      toast({
+        title: 'Tokens Minted',
+        description: `Successfully minted ${amount} tokens.`,
+      });
+
+    } catch (error) {
+      console.error('Failed to mint token:', error);
+      toast({
+        title: 'Minting Failed',
+        description: 'There was an error minting your token. See console for details.',
         variant: 'destructive',
       });
     }

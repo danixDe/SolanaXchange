@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { useWallet } from '../providers/WalletProvider';
 import {
   Form,
   FormControl,
@@ -38,13 +39,7 @@ const formSchema = z.object({
 export function TokenMintingForm() {
   const [isMinting, setIsMinting] = useState(false);
   const { toast } = useToast();
-
-  // Mock token data - in a real application this would come from your token service
-  const tokens = [
-    { id: '1', name: 'My Token (MTK)', address: 'AKLJ83js92kSD93n2kdJSL93' },
-    { id: '2', name: 'Game Token (GME)', address: 'BHJK93jd02kWM83j3mdKSP39' },
-    { id: '3', name: 'Test Token (TST)', address: 'CNJK93js71mDP73j2nfLDK47' },
-  ];
+  const { mintToken, createdTokens, connected } = useWallet();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -56,56 +51,62 @@ export function TokenMintingForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!connected) {
+      toast({
+        title: 'Wallet Not Connected',
+        description: 'Connect your wallet before minting tokens.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsMinting(true);
-    
-    // Simulate minting delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    console.log(values);
-    
-    const token = tokens.find(t => t.address === values.tokenAddress);
-    
-    toast({
-      title: 'Tokens Minted',
-      description: `Successfully minted ${values.amount} ${token?.name.split('(')[1].replace(')', '')} tokens to the recipient.`,
-    });
-    
-    setIsMinting(false);
+    try {
+      await mintToken(
+        values.tokenAddress,
+        values.amount,
+        values.recipientAddress
+      );
+      form.reset();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Minting Failed',
+        description: 'There was a problem minting your token.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsMinting(false);
+    }
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="tokenAddress"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Token</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a token" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {tokens.map((token) => (
-                    <SelectItem key={token.id} value={token.address}>
-                      {token.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Select the token you want to mint
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <FormField
+        control={form.control}
+        name="tokenAddress"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Token</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a token" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {createdTokens.map((token) => (
+                  <SelectItem key={token.address} value={token.address}>
+                    {token.name} ({token.symbol})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
         
         <FormField
           control={form.control}

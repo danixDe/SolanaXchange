@@ -1,5 +1,5 @@
 import { useWallet } from '@/v2/providers/WalletProvider';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { CreditCard, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 

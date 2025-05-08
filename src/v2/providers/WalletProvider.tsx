@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { Connection, PublicKey, LAMPORTS_PER_SOL, Keypair } from '@solana/web3.js';
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useToast } from '@/hooks/use-toast';
 
 export type WalletType = 'phantom' | 'solflare' | null;
@@ -11,7 +11,9 @@ interface WalletContextType {
   balance: number;
   connectWallet: (type: WalletType) => Promise<void>;
   disconnectWallet: () => void;
-  createToken: (tokenName: string, tokenSymbol: string, tokenDecimals: number, initialSupply: number) => Promise<void>;
+  createToken: (name: string, symbol: string, decimals: number, initialSupply: number) => Promise<void>;
+  mintToken: (tokenAddress: string, amount: number, recipientAddress: string) => Promise<void>;
+  createdTokens: Array<{ name: string; symbol: string; address: string; decimals: number }>;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -22,6 +24,8 @@ const WalletContext = createContext<WalletContextType>({
   connectWallet: async () => {},
   disconnectWallet: () => {},
   createToken: async () => {},
+  mintToken: async () => {},
+  createdTokens: [],
 });
 
 const connection = new Connection('https://api.devnet.solana.com');
@@ -31,52 +35,42 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [connected, setConnected] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
+  const [createdTokens, setCreatedTokens] = useState<Array<{ name: string; symbol: string; address: string; decimals: number }>>([]);
   const { toast } = useToast();
 
   const connectWallet = async (type: WalletType) => {
     try {
       const solana = (window as any).solana;
       const solflare = (window as any).solflare;
-      const walletProvider = type === 'phantom' ? solana : solflare;
+      const provider = type === 'phantom' ? solana : solflare;
 
-      if (type === 'phantom' && !solana?.isPhantom) {
+      if (!provider) {
         toast({
-          title: 'Phantom Wallet Not Found',
-          description: 'Please install the Phantom Wallet extension.',
+          title: `${type === 'phantom' ? 'Phantom' : 'Solflare'} Wallet Not Found`,
+          description: `Please install the ${type === 'phantom' ? 'Phantom' : 'Solflare'} Wallet extension.`,
           variant: 'destructive',
         });
-        window.open('https://phantom.app/', '_blank');
+        window.open(type === 'phantom' ? 'https://phantom.app/' : 'https://solflare.com/', '_blank');
         return;
       }
 
-      if (type === 'solflare' && !solflare?.isSolflare) {
-        toast({
-          title: 'Solflare Wallet Not Found',
-          description: 'Please install the Solflare Wallet extension.',
-          variant: 'destructive',
-        });
-        window.open('https://solflare.com/', '_blank');
-        return;
-      }
-
-      const response = await walletProvider.connect();
+      const response = await provider.connect();
       const pubkey = response.publicKey?.toString();
-
       if (!pubkey) throw new Error('No public key returned');
 
       setWallet(type);
       setAddress(pubkey);
       setConnected(true);
 
+      const lamports = await connection.getBalance(new PublicKey(pubkey));
+      setBalance(lamports / LAMPORTS_PER_SOL);
+
       toast({
         title: 'Wallet Connected',
         description: `Connected to ${type} wallet`,
       });
-
-      const lamports = await connection.getBalance(new PublicKey(pubkey));
-      setBalance(lamports / LAMPORTS_PER_SOL);
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
+    } catch (err) {
+      console.error('Wallet connection failed:', err);
       toast({
         title: 'Connection Failed',
         description: 'Unable to connect to wallet.',
@@ -90,12 +84,8 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       const solana = (window as any).solana;
       const solflare = (window as any).solflare;
 
-      if (wallet === 'phantom' && solana?.isConnected) {
-        await solana.disconnect();
-      }
-      if (wallet === 'solflare' && solflare?.isConnected) {
-        await solflare.disconnect();
-      }
+      if (wallet === 'phantom' && solana?.isConnected) await solana.disconnect();
+      if (wallet === 'solflare' && solflare?.isConnected) await solflare.disconnect();
 
       setWallet(null);
       setAddress(null);
@@ -106,8 +96,8 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         title: 'Wallet Disconnected',
         description: 'You have successfully disconnected your wallet.',
       });
-    } catch (error) {
-      console.error('Error disconnecting wallet:', error);
+    } catch (err) {
+      console.error('Disconnection failed:', err);
       toast({
         title: 'Disconnection Failed',
         description: 'There was a problem disconnecting your wallet.',
@@ -122,20 +112,14 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       const lamports = await connection.getBalance(new PublicKey(address));
       setBalance(lamports / LAMPORTS_PER_SOL);
     };
-
     fetchBalance();
   }, [address]);
 
-  const createToken = async (
-    tokenName: string,
-    tokenSymbol: string,
-    tokenDecimals: number,
-    initialSupply: number
-  ) => {
+  const createToken = async (name: string, symbol: string, decimals: number, initialSupply: number) => {
     if (!address) {
       toast({
         title: 'Wallet Not Connected',
-        description: 'You need to connect your wallet first.',
+        description: 'Connect your wallet before creating a token.',
         variant: 'destructive',
       });
       return;
@@ -150,13 +134,13 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
 
       const mintAuthority = new PublicKey(address);
       const payer = mintAuthority;
-      
+
       const mint = await createMint(
         connection,
         payer,
         mintAuthority,
         null,
-        tokenDecimals
+        decimals
       );
 
       const tokenAccount = await getOrCreateAssociatedTokenAccount(
@@ -172,86 +156,102 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         mint,
         tokenAccount.address,
         mintAuthority,
-        initialSupply * Math.pow(10, tokenDecimals)
+        initialSupply * Math.pow(10, decimals)
       );
 
-      // Add the created token to the state
-      setCreatedTokens((prevTokens) => [
-        ...prevTokens,
-        {
-          name: tokenName,
-          symbol: tokenSymbol,
-          address: mint.toBase58(),
-        },
-      ]);
+      setCreatedTokens((prev) => [...prev, {
+        name,
+        symbol,
+        address: mint.toBase58(),
+        decimals
+      }]);
 
       toast({
         title: 'Token Created',
-        description: `Successfully created ${tokenName} (${tokenSymbol}) with an initial supply of ${initialSupply}`,
+        description: `${name} (${symbol}) created with supply ${initialSupply}`,
       });
-
-      console.log('New mint address:', mint.toBase58());
-      console.log('Token account address:', tokenAccount.address.toBase58());
-    } catch (error) {
-      console.error('Failed to create token:', error);
+    } catch (err) {
+      console.error('Token creation error:', err);
       toast({
-        title: 'Token Creation Failed',
-        description: 'There was an error creating your token. See console for details.',
+        title: 'Creation Failed',
+        description: 'Error creating token. Check console.',
         variant: 'destructive',
       });
     }
   };
 
-  const mintToken = async (tokenAddress: string, amount: number) => {
+  const mintToken = async (tokenAddress: string, amount: number, recipientAddress: string) => {
     if (!address) {
       toast({
         title: 'Wallet Not Connected',
-        description: 'You need to connect your wallet first.',
+        description: 'Connect your wallet before minting tokens.',
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      const { mintTo, getAssociatedTokenAddress } = await import('@solana/spl-token') as any;
+      const {
+        mintTo,
+        getOrCreateAssociatedTokenAccount,
+      } = await import('@solana/spl-token') as any;
 
-      const tokenMint = new PublicKey(tokenAddress);
+      const token = createdTokens.find(t => t.address === tokenAddress);
+      if (!token) {
+        toast({
+          title: 'Token Not Found',
+          description: 'Selected token not found.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const mint = new PublicKey(tokenAddress);
+      const recipient = new PublicKey(recipientAddress);
       const payer = new PublicKey(address);
 
-      const associatedTokenAddress = await getAssociatedTokenAddress(
-        tokenMint,
-        payer
+      const recipientTokenAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        recipient
       );
 
-      await mintTo(connection, payer, tokenMint, associatedTokenAddress, payer, amount);
+      await mintTo(
+        connection,
+        payer,
+        mint,
+        recipientTokenAccount.address,
+        payer,
+        amount * Math.pow(10, token.decimals)
+      );
 
       toast({
-        title: 'Tokens Minted',
-        description: `Successfully minted ${amount} tokens.`,
+        title: 'Minted Successfully',
+        description: `Minted ${amount} ${token.symbol} to ${recipientAddress.slice(0, 4)}...${recipientAddress.slice(-4)}`,
       });
-
-    } catch (error) {
-      console.error('Failed to mint token:', error);
+    } catch (err) {
+      console.error('Minting error:', err);
       toast({
         title: 'Minting Failed',
-        description: 'There was an error minting your token. See console for details.',
+        description: 'Error minting token.',
         variant: 'destructive',
       });
     }
   };
 
   return (
-    <WalletContext.Provider
-      value={{
-        wallet,
-        connected,
-        address,
-        balance,
-        connectWallet,
-        disconnectWallet,
-        createToken,
-      }}
-    >
+    <WalletContext.Provider value={{
+      wallet,
+      connected,
+      address,
+      balance,
+      connectWallet,
+      disconnectWallet,
+      createToken,
+      mintToken,
+      createdTokens,
+    }}>
       {children}
     </WalletContext.Provider>
   );

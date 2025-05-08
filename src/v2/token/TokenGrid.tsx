@@ -2,134 +2,190 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, Send } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useWallet } from '../providers/WalletProvider';
+import { PublicKey } from '@solana/web3.js';
 
 export function TokenGrid() {
   const { toast } = useToast();
+  const { 
+    createdTokens, 
+    address, 
+    connected,
+    mintToken,
+  } = useWallet();
   
-  const tokens = [
-    {
-      id: '1',
-      name: 'My Token',
-      symbol: 'MTK',
-      supply: 1000000,
-      balance: 950000,
-      price: 0.024,
-      change: 2.4,
-      address: 'AKLJ83js92kSD93n2kdJSL93',
-    },
-    {
-      id: '2',
-      name: 'Game Token',
-      symbol: 'GME',
-      supply: 500000,
-      balance: 490000,
-      price: 0.053,
-      change: -1.2,
-      address: 'BHJK93jd02kWM83j3mdKSP39',
-    },
-    {
-      id: '3',
-      name: 'Test Token',
-      symbol: 'TST',
-      supply: 100000,
-      balance: 95000,
-      price: 0.007,
-      change: 5.3,
-      address: 'CNJK93js71mDP73j2nfLDK47',
-    },
-  ];
-  
-  const handleViewDetails = (token: typeof tokens[0]) => {
-    toast({
-      title: `${token.name} Details`,
-      description: `Token Address: ${token.address.slice(0, 8)}...`,
-    });
+  const [tokenDetails, setTokenDetails] = useState<Array<{
+    address: string;
+    supply?: number;
+    balance?: number;
+    decimals?: number;
+  }>>([]);
+
+  const fetchTokenDetails = async () => {
+    if (!connected || createdTokens.length === 0) return [];
+
+    const details = await Promise.all(
+      createdTokens.map(async (token) => {
+        try {
+          const splToken = await import('@solana/spl-token') as any;
+          const mint = new PublicKey(token.address);
+          
+          const mintInfo = await splToken.getMint(connected, mint);
+          const supply = Number(mintInfo.supply) / Math.pow(10, mintInfo.decimals);
+          
+          let balance = 0;
+          if (address) {
+            const ata = await splToken.getAssociatedTokenAddress(
+              mint,
+              new PublicKey(address)
+            );
+            
+            try {
+              const account = await splToken.getAccount(connected, ata);
+              balance = Number(account.amount) / Math.pow(10, mintInfo.decimals);
+            } catch (e) {
+              console.log("Associated token account does not exist",e);
+            }
+          }
+          
+          return { 
+            address: token.address, 
+            supply,
+            balance,
+            decimals: mintInfo.decimals
+          };
+        } catch (error) {
+          console.error('Error fetching token details:', error);
+          return { 
+            address: token.address, 
+            supply: 0, 
+            balance: 0,
+            decimals: 0
+          };
+        }
+      })
+    );
+    return details;
   };
-  
-  const handleTransfer = (token: typeof tokens[0]) => {
+
+  useEffect(() => {
+    const load = async () => {
+      const details = await fetchTokenDetails();
+      setTokenDetails(details);
+    };
+    load();
+  }, [createdTokens, address, connected]);
+
+  const handleMintTokens = async (tokenAddress: string) => {
+    if (!address) {
+      toast({
+        title: 'Wallet Not Connected',
+        description: 'Please connect your wallet to mint tokens',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      const amount = 1000;
+      await mintToken(tokenAddress, amount, address);
+      
+      toast({
+        title: 'Tokens Minted',
+        description: `Successfully minted ${amount} tokens to your wallet`,
+      });
+      
+      const details = await fetchTokenDetails();
+      setTokenDetails(details);
+    } catch (error) {
+      console.error('Minting failed:', error);
+      toast({
+        title: 'Minting Failed',
+        description: 'Failed to mint new tokens',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleViewDetails = (tokenAddress: string) => {
+    const token = createdTokens.find(t => t.address === tokenAddress);
+    const detail = tokenDetails.find(d => d.address === tokenAddress);
+    
     toast({
-      title: `Transfer ${token.symbol}`,
-      description: 'Feature coming soon!',
+      title: `${token?.name} (${token?.symbol}) Details`,
+      description: `
+        Address: ${tokenAddress.slice(0, 6)}...${tokenAddress.slice(-6)}\n
+        Decimals: ${detail?.decimals || 0}\n
+        Total Supply: ${detail?.supply?.toLocaleString() || 0}
+      `,
     });
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {tokens.map((token) => (
-        <Card 
-          key={token.id} 
-          className="glass-card hover-glow overflow-hidden transition-all duration-300"
-        >
-          <div 
-            className={`h-1 w-full ${
-              token.change > 0 
-                ? 'bg-gradient-to-r from-green-500/50 to-green-500' 
-                : 'bg-gradient-to-r from-red-500/50 to-red-500'
-            }`}
-          />
-          <CardHeader className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
-                  {token.name}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {token.symbol}
-                </p>
+      {createdTokens.map((token) => {
+        
+        return (
+          <Card 
+            key={token.address}
+            className="hover-glow transition-all duration-300 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10" />
+            
+            <CardHeader className="relative z-10">
+              <CardTitle className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
+                {token.name}
+              </CardTitle>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{token.symbol}</p>
+                <span className="text-xs text-purple-400">
+                  {token.decimals} Decimals
+                </span>
               </div>
-              <div 
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-                  token.change > 0 
-                    ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20' 
-                    : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                }`}
+            </CardHeader>
+
+            <CardContent className="relative z-10">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Your Balance</p>
+                  <p className="font-medium">
+                    
+                    {token.decimals }
+                    
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Total Supply</p>
+                  <p className="font-medium">
+                    
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+
+            <CardFooter className="relative z-10 flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => handleViewDetails(token.address)}
               >
-                {token.change > 0 ? '+' : ''}{token.change}%
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6 pt-0">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Balance</p>
-                <p className="font-medium text-foreground/90">{token.balance.toLocaleString()} {token.symbol}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Value</p>
-                <p className="font-medium text-foreground/90">${(token.balance * token.price).toFixed(2)}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Price</p>
-                <p className="font-medium text-foreground/90">${token.price}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Total Supply</p>
-                <p className="font-medium text-foreground/90">{token.supply.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="p-6 pt-0 flex gap-3">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full button-glow transition-all duration-300 hover:bg-accent hover:text-accent-foreground" 
-              onClick={() => handleViewDetails(token)}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Details
-            </Button>
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="w-full button-glow bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all duration-300" 
-              onClick={() => handleTransfer(token)}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Transfer
-            </Button>
-          </CardFooter>
-        </Card>
-      ))}
+                <Eye className="mr-2 h-4 w-4" />
+                Details
+              </Button>
+              <Button
+                size="sm"
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                onClick={() => handleMintTokens(token.address)}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Mint Tokens
+              </Button>
+            </CardFooter>
+          </Card> 
+        );
+      })}
     </div>
   );
 }
